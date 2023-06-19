@@ -26,6 +26,6 @@ require (
 	github.com/ugorji/go/codec v1.2.11 // indirect
 	github.com/ziutek/mymysql v1.5.4 // indirect
 	golang.org/x/arch v0.3.0 // indirect
-	golang.org/x/crypto v0.9.0
+	golang.org/x/crypto v0.10.0
 	google.golang.org/protobuf v1.30.0 // indirect
 )
