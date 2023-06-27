@@ -4,32 +4,32 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"strconv"
 	"strings"
 	"time"
 
-	"github.com/cp-Coder/khelo/db"
+	"github.com/cp-Coder/khelo/pkg/platform/cache"
+	db "github.com/cp-Coder/khelo/pkg/platform/database"
 	jwt "github.com/golang-jwt/jwt/v4"
 	uuid "github.com/google/uuid"
 )
 
-// TokenDetails ...
+// TokenDetails struct definition for token details
 type TokenDetails struct {
 	AccessToken  string
 	RefreshToken string
-	AccessUUID   string
-	RefreshUUID  string
+	AccessUUID   uuid.UUID
+	RefreshUUID  uuid.UUID
 	AtExpires    int64
 	RtExpires    int64
 }
 
 // AccessDetails ...
 type AccessDetails struct {
-	AccessUUID string
-	UserID     int64
+	AccessUUID uuid.UUID
+	UserID     uuid.UUID
 }
 
-// Token ...
+// Token struct definition for token response
 type Token struct {
 	AccessToken  string `json:"access_token"`
 	RefreshToken string `json:"refresh_token"`
@@ -38,18 +38,23 @@ type Token struct {
 // AuthModel ...
 type AuthModel struct{}
 
+// Init method to migrate the auth model schema to the database
+func (m *AuthModel) Init() {
+	db.GetDBClient().Migrate(&TokenDetails{}, &AccessDetails{}, &Token{})
+}
+
 // CreateToken ...
-func (m AuthModel) CreateToken(userID int64) (*TokenDetails, error) {
+func (m *AuthModel) CreateToken(userID uuid.UUID) (*TokenDetails, error) {
 
 	td := &TokenDetails{}
 	td.AtExpires = time.Now().Add(time.Minute * 15).Unix()
-	td.AccessUUID = uuid.New().String()
+	td.AccessUUID = uuid.New()
 
 	td.RtExpires = time.Now().Add(time.Hour * 24 * 7).Unix()
-	td.RefreshUUID = uuid.New().String()
+	td.RefreshUUID = uuid.New()
 
 	var err error
-	//Creating Access Token
+	// Creating Access Token
 	atClaims := jwt.MapClaims{}
 	atClaims["authorized"] = true
 	atClaims["access_uuid"] = td.AccessUUID
@@ -61,11 +66,12 @@ func (m AuthModel) CreateToken(userID int64) (*TokenDetails, error) {
 	if err != nil {
 		return nil, err
 	}
-	//Creating Refresh Token
+	// Creating Refresh Token
 	rtClaims := jwt.MapClaims{}
 	rtClaims["refresh_uuid"] = td.RefreshUUID
 	rtClaims["user_id"] = userID
 	rtClaims["exp"] = td.RtExpires
+
 	rt := jwt.NewWithClaims(jwt.SigningMethodHS256, rtClaims)
 	td.RefreshToken, err = rt.SignedString([]byte(os.Getenv("REFRESH_SECRET")))
 	if err != nil {
@@ -75,16 +81,19 @@ func (m AuthModel) CreateToken(userID int64) (*TokenDetails, error) {
 }
 
 // CreateAuth ...
-func (m AuthModel) CreateAuth(userid int64, td *TokenDetails) error {
-	at := time.Unix(td.AtExpires, 0) //converting Unix to UTC(to Time object)
+func (m *AuthModel) CreateAuth(userid uuid.UUID, td *TokenDetails) error {
+	at := time.Unix(td.AtExpires, 0) // converting Unix to UTC(to Time object)
 	rt := time.Unix(td.RtExpires, 0)
 	now := time.Now()
 
-	errAccess := db.GetRedis().Set(td.AccessUUID, strconv.Itoa(int(userid)), at.Sub(now)).Err()
+	// set the access token in redis
+	client := cache.GetRedisClient()
+	errAccess := client.Setx(td.AccessUUID.String(), userid, at.Sub(now))
 	if errAccess != nil {
 		return errAccess
 	}
-	errRefresh := db.GetRedis().Set(td.RefreshUUID, strconv.Itoa(int(userid)), rt.Sub(now)).Err()
+	// set the refresh token in redis
+	errRefresh := client.Setx(td.RefreshUUID.String(), userid, rt.Sub(now))
 	if errRefresh != nil {
 		return errRefresh
 	}
@@ -92,9 +101,9 @@ func (m AuthModel) CreateAuth(userid int64, td *TokenDetails) error {
 }
 
 // ExtractToken ...
-func (m AuthModel) ExtractToken(r *http.Request) string {
+func (m *AuthModel) ExtractToken(r *http.Request) string {
 	bearToken := r.Header.Get("Authorization")
-	//normally Authorization the_token_xxx
+	// normally Authorization the_token_xxx
 	strArr := strings.Split(bearToken, " ")
 	if len(strArr) == 2 {
 		return strArr[1]
@@ -103,10 +112,10 @@ func (m AuthModel) ExtractToken(r *http.Request) string {
 }
 
 // VerifyToken ...
-func (m AuthModel) VerifyToken(r *http.Request) (*jwt.Token, error) {
+func (m *AuthModel) VerifyToken(r *http.Request) (*jwt.Token, error) {
 	tokenString := m.ExtractToken(r)
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-		//Make sure that the token method conform to "SigningMethodHMAC"
+		// Make sure that the token method conform to "SigningMethodHMAC"
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
@@ -119,7 +128,7 @@ func (m AuthModel) VerifyToken(r *http.Request) (*jwt.Token, error) {
 }
 
 // TokenValid ...
-func (m AuthModel) TokenValid(r *http.Request) error {
+func (m *AuthModel) TokenValid(r *http.Request) error {
 	token, err := m.VerifyToken(r)
 	if err != nil {
 		return err
@@ -131,21 +140,18 @@ func (m AuthModel) TokenValid(r *http.Request) error {
 }
 
 // ExtractTokenMetadata ...
-func (m AuthModel) ExtractTokenMetadata(r *http.Request) (*AccessDetails, error) {
+func (m *AuthModel) ExtractTokenMetadata(r *http.Request) (*AccessDetails, error) {
 	token, err := m.VerifyToken(r)
 	if err != nil {
 		return nil, err
 	}
 	claims, ok := token.Claims.(jwt.MapClaims)
 	if ok && token.Valid {
-		accessUUID, ok := claims["access_uuid"].(string)
+		accessUUID, ok := claims["access_uuid"].(uuid.UUID)
 		if !ok {
 			return nil, err
 		}
-		userID, err := strconv.ParseInt(fmt.Sprintf("%.f", claims["user_id"]), 10, 64)
-		if err != nil {
-			return nil, err
-		}
+		userID := claims["user_id"].(uuid.UUID)
 		return &AccessDetails{
 			AccessUUID: accessUUID,
 			UserID:     userID,
@@ -155,20 +161,20 @@ func (m AuthModel) ExtractTokenMetadata(r *http.Request) (*AccessDetails, error)
 }
 
 // FetchAuth ...
-func (m AuthModel) FetchAuth(authD *AccessDetails) (int64, error) {
-	userid, err := db.GetRedis().Get(authD.AccessUUID).Result()
+func (m *AuthModel) FetchAuth(authD *AccessDetails) (uuid.UUID, error) {
+	userid, err := cache.GetRedisClient().Get(authD.AccessUUID.String())
 	if err != nil {
-		return 0, err
+		return uuid.Nil, err
 	}
-	userID, _ := strconv.ParseInt(userid, 10, 64)
+	userID, _ := uuid.Parse(userid)
 	return userID, nil
 }
 
 // DeleteAuth ...
-func (m AuthModel) DeleteAuth(givenUUID string) (int64, error) {
-	deleted, err := db.GetRedis().Del(givenUUID).Result()
+func (m *AuthModel) DeleteAuth(givenUUID uuid.UUID) error {
+	err := cache.GetRedisClient().Del(givenUUID.String())
 	if err != nil {
-		return 0, err
+		return err
 	}
-	return deleted, nil
+	return nil
 }

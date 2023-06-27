@@ -4,13 +4,14 @@ import (
 	"database/sql/driver"
 	"encoding/json"
 	"errors"
+
+	"github.com/google/uuid"
 )
 
 // UserSessionInfo ...
 type UserSessionInfo struct {
-	ID    int64  `json:"id"`
-	Name  string `json:"name"`
-	Email string `json:"email"`
+	ExternalID uuid.UUID `json:"external_id"`
+	Username   string    `json:"username"`
 }
 
 // JSONRaw ...
