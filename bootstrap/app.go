@@ -1,6 +1,6 @@
 package bootstrap
 
-import "gitlab.com/cp-Coder/khelo/mongo"
+import "github.com/cp-Coder/khelo/mongo"
 
 type Application struct {
 	Env   *Env

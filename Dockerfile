@@ -1,11 +1,34 @@
-FROM golang:1.19-alpine
+# syntax=docker/dockerfile:1
+ARG GO_VERSION=1.20
 
-RUN mkdir /app
+FROM golang:${GO_VERSION}-alpine AS base
 
-ADD . /app
+FROM base AS builder
 
 WORKDIR /app
 
-RUN go build -o main cmd/main.go
+# install dependencies
+COPY go.mod go.sum ./
+RUN go mod download
 
-CMD ["/app/main"]
+FROM builder AS build-server
+
+WORKDIR /app
+
+# copy the packages
+COPY --from=builder /go/src /go/src
+
+# copy the source code
+COPY . .
+
+# build the binary
+RUN CGO_ENABLED=0 GOOS=linux go build -o /server ./cmd/main.go
+
+FROM base AS final
+
+# copy the binary from builder
+COPY --from=build-server /server /app
+
+EXPOSE 8080
+
+ENTRYPOINT ["/app"]

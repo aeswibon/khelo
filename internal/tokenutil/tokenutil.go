@@ -4,16 +4,17 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/cp-Coder/khelo/domain"
 	jwt "github.com/golang-jwt/jwt/v4"
-	"gitlab.com/cp-Coder/khelo/domain"
 )
 
+// CreateAccessToken function to create access tokens
 func CreateAccessToken(user *domain.User, secret string, expiry int) (accessToken string, err error) {
-	exp := time.Now().Add(time.Hour * time.Duration(expiry)).Unix()
+	exp := &jwt.NumericDate{Time: time.Now().Add(time.Hour * time.Duration(expiry))}
 	claims := &domain.JwtCustomClaims{
 		Name: user.Name,
 		ID:   user.ID.Hex(),
-		StandardClaims: jwt.StandardClaims{
+		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: exp,
 		},
 	}
@@ -25,11 +26,12 @@ func CreateAccessToken(user *domain.User, secret string, expiry int) (accessToke
 	return t, err
 }
 
+// CreateRefreshToken function to create refresh tokens
 func CreateRefreshToken(user *domain.User, secret string, expiry int) (refreshToken string, err error) {
 	claimsRefresh := &domain.JwtCustomRefreshClaims{
 		ID: user.ID.Hex(),
-		StandardClaims: jwt.StandardClaims{
-			ExpiresAt: time.Now().Add(time.Hour * time.Duration(expiry)).Unix(),
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: &jwt.NumericDate{Time: time.Now().Add(time.Hour * time.Duration(expiry))},
 		},
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claimsRefresh)
@@ -40,6 +42,7 @@ func CreateRefreshToken(user *domain.User, secret string, expiry int) (refreshTo
 	return rt, err
 }
 
+// IsAuthorized function to check authentication
 func IsAuthorized(requestToken string, secret string) (bool, error) {
 	_, err := jwt.Parse(requestToken, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
@@ -53,6 +56,7 @@ func IsAuthorized(requestToken string, secret string) (bool, error) {
 	return true, nil
 }
 
+// ExtractIDFromToken function to extract ID from token
 func ExtractIDFromToken(requestToken string, secret string) (string, error) {
 	token, err := jwt.Parse(requestToken, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {

@@ -6,7 +6,7 @@ import (
 	"log"
 	"time"
 
-	"gitlab.com/cp-Coder/khelo/mongo"
+	"github.com/cp-Coder/khelo/mongo"
 )
 
 // NewMongoDatabase method to create new mongo connection
