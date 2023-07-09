@@ -2,3 +2,8 @@ tmp/
 .*
 !.env*
 !.air.toml
+Makefile
+README.md
+*.yml
+*.yaml
+Dockerfile

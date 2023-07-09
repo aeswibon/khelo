@@ -4,6 +4,29 @@ definitions:
       message:
         type: string
     type: object
+  domain.Facility:
+    properties:
+      active:
+        type: boolean
+      created_by:
+        type: string
+      deleted:
+        type: boolean
+      email:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      ownership:
+        type: integer
+      phone:
+        type: string
+      registration_number:
+        type: string
+      verified:
+        type: boolean
+    type: object
   domain.LoginRequest:
     properties:
       password:
@@ -39,10 +62,34 @@ definitions:
       message:
         type: string
     type: object
+  domain.SuccessResponse:
+    properties:
+      message:
+        type: string
+    type: object
+  domain.User:
+    properties:
+      age:
+        type: integer
+      deleted:
+        type: boolean
+      email:
+        type: string
+      gender:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      phone:
+        type: string
+      username:
+        type: string
+    type: object
 info:
   contact: {}
 paths:
-  /login:
+  /auth/login:
     post:
       consumes:
       - application/json
@@ -72,7 +119,7 @@ paths:
       summary: Login a user
       tags:
       - auth
-  /register:
+  /auth/register:
     post:
       consumes:
       - application/json
@@ -102,4 +149,198 @@ paths:
       summary: Register a new user
       tags:
       - auth
+  /facility:
+    get:
+      consumes:
+      - application/json
+      description: Fetch all facilities
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/domain.Facility'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/domain.ErrorResponse'
+      summary: Fetch all facilities
+      tags:
+      - Facility
+    post:
+      consumes:
+      - application/json
+      description: Create a facility
+      parameters:
+      - description: Facility
+        in: body
+        name: facility
+        required: true
+        schema:
+          $ref: '#/definitions/domain.Facility'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/domain.SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/domain.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/domain.ErrorResponse'
+      summary: Create a facility
+      tags:
+      - Facility
+  /facility/{id}:
+    get:
+      consumes:
+      - application/json
+      description: Get a facility by id
+      parameters:
+      - description: Facility ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/domain.Facility'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/domain.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/domain.ErrorResponse'
+      summary: Get a facility by id
+      tags:
+      - Facility
+    patch:
+      consumes:
+      - application/json
+      description: Update a facility
+      parameters:
+      - description: Facility ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Facility
+        in: body
+        name: facility
+        required: true
+        schema:
+          $ref: '#/definitions/domain.Facility'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/domain.SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/domain.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/domain.ErrorResponse'
+      summary: Update a facility
+      tags:
+      - Facility
+  /facility/{name}:
+    get:
+      consumes:
+      - application/json
+      description: Get a facility by name
+      parameters:
+      - description: Facility Name
+        in: path
+        name: name
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/domain.Facility'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/domain.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/domain.ErrorResponse'
+      summary: Get a facility by name
+      tags:
+      - Facility
+  /user/me:
+    get:
+      consumes:
+      - application/json
+      description: Fetch profile
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/domain.User'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/domain.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Fetch profile
+      tags:
+      - User
+    patch:
+      consumes:
+      - application/json
+      description: Update profile
+      parameters:
+      - description: Profile
+        in: body
+        name: profile
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/domain.SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/domain.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/domain.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Update profile
+      tags:
+      - User
 swagger: "2.0"
