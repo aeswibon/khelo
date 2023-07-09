@@ -26,7 +26,6 @@ func UserRepository(db mongo.Database, collection string) domain.UserRepository 
 
 func (ur *userRepository) Create(c context.Context, user *domain.User) error {
 	collection := ur.database.Collection(ur.collection)
-	ur.database.Client().StartSession()
 	_, err := ur.GetUserByUsername(c, user.Username)
 	if err == nil {
 		return errors.New("username already exists")
@@ -77,7 +76,7 @@ func (ur *userRepository) GetByID(c context.Context, id string) (domain.User, er
 	if err != nil {
 		return user, err
 	}
-	err = collection.FindOne(c, bson.M{"_id": idHex}).Decode(&user)
+	err = collection.FindOne(c, bson.D{{Key: "_id", Value: idHex}}).Decode(&user)
 	return user, err
 }
 

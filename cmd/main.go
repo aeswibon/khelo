@@ -20,7 +20,7 @@ func main() {
 
 	timeout := time.Duration(env.ContextTimeout) * time.Second
 
-	docs.SwaggerInfo.BasePath = "/api/v1"
+	docs.SwaggerInfo.BasePath = "/api"
 
 	gin := gin.Default()
 	gin.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerfiles.Handler))

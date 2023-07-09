@@ -35,4 +35,5 @@ func Setup(env *bootstrap.Env, timeout time.Duration, db mongo.Database, gin *gi
 	protectedRouter.Use(middleware.JwtAuthMiddleware(env.AccessTokenSecret))
 	// All Private APIs
 	ProfileRouter(env, timeout, db, protectedRouter)
+	FacilityRouter(env, timeout, db, protectedRouter)
 }
