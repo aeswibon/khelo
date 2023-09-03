@@ -5,7 +5,8 @@ import (
 	"time"
 
 	"github.com/cp-Coder/khelo/domain"
-	"github.com/cp-Coder/khelo/internal/tokenutil"
+	"github.com/cp-Coder/khelo/internal"
+	"go.mongodb.org/mongo-driver/bson"
 )
 
 type loginUsecase struct {
@@ -21,16 +22,27 @@ func LoginUsecase(userRepository domain.UserRepository, timeout time.Duration) d
 	}
 }
 
-func (lu *loginUsecase) GetUserByUsername(c context.Context, username string) (domain.User, error) {
+func (lu *loginUsecase) Authenticate(c context.Context, request domain.LoginRequest) (domain.User, error) {
 	ctx, cancel := context.WithTimeout(c, lu.contextTimeout)
 	defer cancel()
-	return lu.userRepository.GetUserByUsername(ctx, username)
+	users, err := lu.userRepository.Fetch(ctx, bson.M{"username": request.Username}, bson.M{
+		"username": 1,
+	})
+	if err != nil || len(users) == 0 {
+		return domain.User{}, err
+	}
+	user := users[0]
+	check := internal.CheckPasswordHash(request.Password, user.Password)
+	if !check {
+		return domain.User{}, err
+	}
+	return user, nil
 }
 
 func (lu *loginUsecase) CreateAccessToken(user *domain.User, secret string, expiry int) (accessToken string, err error) {
-	return tokenutil.CreateAccessToken(user, secret, expiry)
+	return internal.CreateAccessToken(user, secret, expiry)
 }
 
 func (lu *loginUsecase) CreateRefreshToken(user *domain.User, secret string, expiry int) (refreshToken string, err error) {
-	return tokenutil.CreateRefreshToken(user, secret, expiry)
+	return internal.CreateRefreshToken(user, secret, expiry)
 }

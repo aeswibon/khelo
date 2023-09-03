@@ -24,7 +24,7 @@ func AuthRouter(env *bootstrap.Env, timeout time.Duration, db mongo.Database, gr
 		Env:          env,
 	}
 
-	group.POST("/register", sc.Register)
-	group.POST("/login", lc.Login)
+	group.POST("/auth/register", sc.Register)
+	group.POST("/auth/login", lc.Login)
 
 }

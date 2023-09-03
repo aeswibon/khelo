@@ -5,6 +5,7 @@ import (
 	"errors"
 
 	"github.com/cp-Coder/khelo/domain"
+	"github.com/cp-Coder/khelo/internal"
 	"github.com/cp-Coder/khelo/mongo"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -24,49 +25,55 @@ func UserRepository(db mongo.Database, collection string) domain.UserRepository 
 	}
 }
 
+func checkUnique(c context.Context, collection mongo.Collection, field string, value string) bool {
+	user, err := collection.CountDocuments(c, bson.M{field: value})
+	if err != nil {
+		return false
+	}
+	return user == 0
+}
+
 func (ur *userRepository) Create(c context.Context, user *domain.User) error {
 	collection := ur.database.Collection(ur.collection)
-	_, err := ur.GetUserByUsername(c, user.Username)
-	if err == nil {
+	if check := checkUnique(c, collection, "username", user.Username); check {
 		return errors.New("username already exists")
 	}
-	_, err = ur.GetUserByEmail(c, user.Email)
-	if err == nil {
+	if check := checkUnique(c, collection, "email", user.Email); check {
 		return errors.New("email already exists")
 	}
+
+	// Hash password before storing in database
+	hashPassword, err := internal.HashPassword(user.Password)
+	if err != nil {
+		return errors.New("Internal server error")
+	}
+	user.Password = hashPassword
 	_, err = collection.InsertOne(c, user)
 	return err
 }
 
-func (ur *userRepository) Fetch(c context.Context) ([]domain.User, error) {
+func (ur *userRepository) Fetch(c context.Context, filter interface{}, projection interface{}) ([]domain.User, error) {
 	collection := ur.database.Collection(ur.collection)
-	opts := options.Find().SetProjection(bson.D{{Key: "password", Value: 0}})
-	cursor, err := collection.Find(c, bson.D{}, opts)
+	opts := options.Find().SetProjection(projection)
+	cursor, err := collection.Find(c, filter, opts)
 	if err != nil {
 		return nil, err
 	}
 
 	var users []domain.User
-	err = cursor.All(c, &users)
+	for cursor.Next(c) {
+		var user domain.User
+		err := cursor.Decode(&user)
+		if err != nil {
+			return nil, err
+		}
+		users = append(users, user)
+	}
 	if users == nil {
 		return []domain.User{}, err
 	}
 
 	return users, err
-}
-
-func (ur *userRepository) GetUserByUsername(c context.Context, username string) (domain.User, error) {
-	collection := ur.database.Collection(ur.collection)
-	var user domain.User
-	err := collection.FindOne(c, bson.M{"username": username}).Decode(&user)
-	return user, err
-}
-
-func (ur *userRepository) GetUserByEmail(c context.Context, email string) (domain.User, error) {
-	collection := ur.database.Collection(ur.collection)
-	var user domain.User
-	err := collection.FindOne(c, bson.M{"email": email}).Decode(&user)
-	return user, err
 }
 
 func (ur *userRepository) GetByID(c context.Context, id string) (domain.User, error) {

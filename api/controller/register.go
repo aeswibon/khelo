@@ -6,8 +6,6 @@ import (
 	"github.com/cp-Coder/khelo/bootstrap"
 	"github.com/cp-Coder/khelo/domain"
 	"github.com/gin-gonic/gin"
-	"go.mongodb.org/mongo-driver/bson/primitive"
-	"golang.org/x/crypto/bcrypt"
 )
 
 // RegisterController ...
@@ -36,31 +34,7 @@ func (sc *RegisterController) Register(c *gin.Context) {
 		return
 	}
 
-	if _, err := sc.RegisterUsecase.CheckUser(c, request.Username, request.Email); err == nil {
-		c.JSON(http.StatusConflict, domain.ErrorResponse{Message: "User already exists !!!"})
-		return
-	}
-
-	encryptedPassword, err := bcrypt.GenerateFromPassword(
-		[]byte(request.Password),
-		bcrypt.DefaultCost,
-	)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, domain.ErrorResponse{Message: err.Error()})
-		return
-	}
-
-	request.Password = string(encryptedPassword)
-
-	user := domain.User{
-		ID:       primitive.NewObjectID(),
-		Username: request.Username,
-		Email:    request.Email,
-		Password: request.Password,
-		Type:     "USER",
-	}
-
-	if err := sc.RegisterUsecase.Create(c, &user); err != nil {
+	if err := sc.RegisterUsecase.Create(c, &request); err != nil {
 		c.JSON(http.StatusInternalServerError, domain.ErrorResponse{Message: err.Error()})
 		return
 	}

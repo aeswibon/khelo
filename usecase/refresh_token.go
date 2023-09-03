@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/cp-Coder/khelo/domain"
-	"github.com/cp-Coder/khelo/internal/tokenutil"
+	"github.com/cp-Coder/khelo/internal"
 )
 
 type refreshTokenUsecase struct {
@@ -28,13 +28,13 @@ func (rtu *refreshTokenUsecase) GetUserByID(c context.Context, email string) (do
 }
 
 func (rtu *refreshTokenUsecase) CreateAccessToken(user *domain.User, secret string, expiry int) (accessToken string, err error) {
-	return tokenutil.CreateAccessToken(user, secret, expiry)
+	return internal.CreateAccessToken(user, secret, expiry)
 }
 
 func (rtu *refreshTokenUsecase) CreateRefreshToken(user *domain.User, secret string, expiry int) (refreshToken string, err error) {
-	return tokenutil.CreateRefreshToken(user, secret, expiry)
+	return internal.CreateRefreshToken(user, secret, expiry)
 }
 
 func (rtu *refreshTokenUsecase) ExtractIDFromToken(requestToken string, secret string) (string, error) {
-	return tokenutil.ExtractIDFromToken(requestToken, secret)
+	return internal.ExtractIDFromToken(requestToken, secret)
 }

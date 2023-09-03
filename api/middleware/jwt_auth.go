@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/cp-Coder/khelo/domain"
-	"github.com/cp-Coder/khelo/internal/tokenutil"
+	"github.com/cp-Coder/khelo/internal"
 	"github.com/gin-gonic/gin"
 )
 
@@ -16,9 +16,9 @@ func JwtAuthMiddleware(secret string) gin.HandlerFunc {
 		t := strings.Split(authHeader, " ")
 		if len(t) == 2 {
 			authToken := t[1]
-			authorized, err := tokenutil.IsAuthorized(authToken, secret)
+			authorized, err := internal.IsAuthorized(authToken, secret)
 			if authorized {
-				userID, err := tokenutil.ExtractIDFromToken(authToken, secret)
+				userID, err := internal.ExtractIDFromToken(authToken, secret)
 				if err != nil {
 					c.JSON(http.StatusUnauthorized, domain.ErrorResponse{Message: err.Error()})
 					c.Abort()

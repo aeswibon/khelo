@@ -3,8 +3,6 @@ package controller
 import (
 	"net/http"
 
-	"golang.org/x/crypto/bcrypt"
-
 	"github.com/cp-Coder/khelo/bootstrap"
 	"github.com/cp-Coder/khelo/domain"
 	"github.com/gin-gonic/gin"
@@ -37,14 +35,9 @@ func (lc *LoginController) Login(c *gin.Context) {
 		return
 	}
 
-	user, err := lc.LoginUsecase.GetUserByUsername(c, request.Username)
+	user, err := lc.LoginUsecase.Authenticate(c, request)
 	if err != nil {
 		c.JSON(http.StatusNotFound, domain.ErrorResponse{Message: "Invalid Credentials"})
-		return
-	}
-
-	if bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(request.Password)) != nil {
-		c.JSON(http.StatusUnauthorized, domain.ErrorResponse{Message: "Invalid credentials"})
 		return
 	}
 

@@ -15,36 +15,55 @@ type Database interface {
 	Client() Client
 }
 
+// mongoDatabase struct defining mongo database
+type mongoDatabase struct {
+	db *mongo.Database
+}
+
 // Collection interface defining database operation
 type Collection interface {
 	FindOne(context.Context, interface{}) SingleResult
+	Find(context.Context, interface{}, ...*options.FindOptions) (Cursor, error)
 	InsertOne(context.Context, interface{}) (interface{}, error)
 	InsertMany(context.Context, []interface{}) ([]interface{}, error)
 	DeleteOne(context.Context, interface{}) (int64, error)
-	Find(context.Context, interface{}, ...*options.FindOptions) (Cursor, error)
 	CountDocuments(context.Context, interface{}, ...*options.CountOptions) (int64, error)
 	Aggregate(context.Context, interface{}) (Cursor, error)
 	UpdateOne(context.Context, interface{}, interface{}, ...*options.UpdateOptions) (*mongo.UpdateResult, error)
 	UpdateMany(context.Context, interface{}, interface{}, ...*options.UpdateOptions) (*mongo.UpdateResult, error)
 }
 
-// SingleResult ...
+// mongoCollection struct defining mongo collection
+type mongoCollection struct {
+	coll *mongo.Collection
+}
+
+// SingleResult interface defining basic database operation
 type SingleResult interface {
 	Decode(interface{}) error
 }
 
+// mongoSingleResult struct for fetching single document
+type mongoSingleResult struct {
+	sr *mongo.SingleResult
+}
+
 // Cursor interface defining properties to implement pagination
 type Cursor interface {
-	Close(context.Context) error
 	Next(context.Context) bool
+	Close(context.Context) error
 	Decode(interface{}) error
 	All(context.Context, interface{}) error
+}
+
+// mongoCursor struct for fetching multiple documents
+type mongoCursor struct {
+	mc *mongo.Cursor
 }
 
 // Client interface defining basic database operation
 type Client interface {
 	Database(string) Database
-	Connect(context.Context) error
 	Disconnect(context.Context) error
 	StartSession() (mongo.Session, error)
 	UseSession(ctx context.Context, fn func(mongo.SessionContext) error) error
@@ -56,43 +75,24 @@ type mongoClient struct {
 	cl *mongo.Client
 }
 
-// mongoDatabase struct defining mongo database
-type mongoDatabase struct {
-	db *mongo.Database
-}
-
-// mongoCollection struct defining mongo collection
-type mongoCollection struct {
-	coll *mongo.Collection
-}
-
-// mongoSingleResult struct for fetching single document
-type mongoSingleResult struct {
-	sr *mongo.SingleResult
-}
-
-// mongoCursor struct for fetching multiple documents
-type mongoCursor struct {
-	mc *mongo.Cursor
-}
-
 // mongoSession struct for defining mongo session
 type mongoSession struct {
 	mongo.Session
 }
 
 // NewClient function creating new mongo client
-func NewClient(connection string) (Client, error) {
+func NewClient(ctx context.Context, connection string) (Client, error) {
 	time.Local = time.UTC
-	c, err := mongo.NewClient(options.Client().ApplyURI(connection))
+	c, err := mongo.Connect(ctx, options.Client().ApplyURI(connection))
 
-	return &mongoClient{cl: c}, err
+	if err != nil {
+		return nil, err
+	}
+
+	return &mongoClient{cl: c}, nil
 }
 
-// Ping method to check database connection
-func (mc *mongoClient) Ping(ctx context.Context) error {
-	return mc.cl.Ping(ctx, readpref.Primary())
-}
+// Client methods
 
 // Database method returning database handler
 func (mc *mongoClient) Database(dbName string) Database {
@@ -100,9 +100,9 @@ func (mc *mongoClient) Database(dbName string) Database {
 	return &mongoDatabase{db: db}
 }
 
-// UseSession method to create new session and use it as SessionContext
-func (mc *mongoClient) UseSession(ctx context.Context, fn func(mongo.SessionContext) error) error {
-	return mc.cl.UseSession(ctx, fn)
+// Disconnect method to disconnect the database connection
+func (mc *mongoClient) Disconnect(ctx context.Context) error {
+	return mc.cl.Disconnect(ctx)
 }
 
 // StartSession method to start the session
@@ -111,15 +111,17 @@ func (mc *mongoClient) StartSession() (mongo.Session, error) {
 	return &mongoSession{session}, err
 }
 
-// Connect method to initialize the database connection
-func (mc *mongoClient) Connect(ctx context.Context) error {
-	return mc.cl.Connect(ctx)
+// UseSession method to create new session and use it as SessionContext
+func (mc *mongoClient) UseSession(ctx context.Context, fn func(mongo.SessionContext) error) error {
+	return mc.cl.UseSession(ctx, fn)
 }
 
-// Disconnect method to disconnect the database connection
-func (mc *mongoClient) Disconnect(ctx context.Context) error {
-	return mc.cl.Disconnect(ctx)
+// Ping method to check database connection
+func (mc *mongoClient) Ping(ctx context.Context) error {
+	return mc.cl.Ping(ctx, readpref.Primary())
 }
+
+// Database methods
 
 // Collection method to get the handle for a particular collection
 func (md *mongoDatabase) Collection(colName string) Collection {
@@ -133,15 +135,18 @@ func (md *mongoDatabase) Client() Client {
 	return &mongoClient{cl: client}
 }
 
+// Collection methods
+
 // FindOne method to find a particular document using filters
 func (mc *mongoCollection) FindOne(ctx context.Context, filter interface{}) SingleResult {
 	singleResult := mc.coll.FindOne(ctx, filter)
 	return &mongoSingleResult{sr: singleResult}
 }
 
-// UpdateOne method to update a paritcular document using filters
-func (mc *mongoCollection) UpdateOne(ctx context.Context, filter interface{}, update interface{}, opts ...*options.UpdateOptions) (*mongo.UpdateResult, error) {
-	return mc.coll.UpdateOne(ctx, filter, update, opts[:]...)
+// Find method to return cursor over the matching documents
+func (mc *mongoCollection) Find(ctx context.Context, filter interface{}, opts ...*options.FindOptions) (Cursor, error) {
+	findResult, err := mc.coll.Find(ctx, filter, opts...)
+	return &mongoCursor{mc: findResult}, err
 }
 
 // InsertOne method to insert a particular document into specified collection
@@ -162,10 +167,9 @@ func (mc *mongoCollection) DeleteOne(ctx context.Context, filter interface{}) (i
 	return count.DeletedCount, err
 }
 
-// Find method to return cursor over the matching documents
-func (mc *mongoCollection) Find(ctx context.Context, filter interface{}, opts ...*options.FindOptions) (Cursor, error) {
-	findResult, err := mc.coll.Find(ctx, filter, opts...)
-	return &mongoCursor{mc: findResult}, err
+// CountDocuments method to return counts of documents based on filters
+func (mc *mongoCollection) CountDocuments(ctx context.Context, filter interface{}, opts ...*options.CountOptions) (int64, error) {
+	return mc.coll.CountDocuments(ctx, filter, opts...)
 }
 
 // Aggregate method returns cursor over resulting documents after executing aggregate cmd
@@ -174,19 +178,21 @@ func (mc *mongoCollection) Aggregate(ctx context.Context, pipeline interface{}) 
 	return &mongoCursor{mc: aggregateResult}, err
 }
 
+// UpdateOne method to update a paritcular document using filters
+func (mc *mongoCollection) UpdateOne(ctx context.Context, filter interface{}, update interface{}, opts ...*options.UpdateOptions) (*mongo.UpdateResult, error) {
+	return mc.coll.UpdateOne(ctx, filter, update, opts[:]...)
+}
+
 // UpdateMany method updates multiple documents based on filters
 func (mc *mongoCollection) UpdateMany(ctx context.Context, filter interface{}, update interface{}, opts ...*options.UpdateOptions) (*mongo.UpdateResult, error) {
 	return mc.coll.UpdateMany(ctx, filter, update, opts[:]...)
 }
 
-// CountDocuments method to return counts of documents based on filters
-func (mc *mongoCollection) CountDocuments(ctx context.Context, filter interface{}, opts ...*options.CountOptions) (int64, error) {
-	return mc.coll.CountDocuments(ctx, filter, opts...)
-}
+// Cursor methods
 
-// Decode method to unmarshall the document
-func (sr *mongoSingleResult) Decode(v interface{}) error {
-	return sr.sr.Decode(v)
+// Next method returns the next document by the cursor
+func (mr *mongoCursor) Next(ctx context.Context) bool {
+	return mr.mc.Next(ctx)
 }
 
 // Close method closes the cursor
@@ -194,12 +200,7 @@ func (mr *mongoCursor) Close(ctx context.Context) error {
 	return mr.mc.Close(ctx)
 }
 
-// Next method returns the next document by the cursor
-func (mr *mongoCursor) Next(ctx context.Context) bool {
-	return mr.mc.Next(ctx)
-}
-
-// DEcode method to unmarshall the document
+// Decode method to unmarshall the document
 func (mr *mongoCursor) Decode(v interface{}) error {
 	return mr.mc.Decode(v)
 }
@@ -207,4 +208,11 @@ func (mr *mongoCursor) Decode(v interface{}) error {
 // All method iterates the cursor and decode each document
 func (mr *mongoCursor) All(ctx context.Context, result interface{}) error {
 	return mr.mc.All(ctx, result)
+}
+
+// SingleResult methods
+
+// Decode method to unmarshall the document
+func (sr *mongoSingleResult) Decode(v interface{}) error {
+	return sr.sr.Decode(v)
 }

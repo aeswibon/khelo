@@ -18,7 +18,7 @@ type LoginResponse struct {
 
 // LoginUsecase ...
 type LoginUsecase interface {
-	GetUserByUsername(c context.Context, username string) (User, error)
+	Authenticate(c context.Context, request LoginRequest) (User, error)
 	CreateAccessToken(user *User, secret string, expiry int) (accessToken string, err error)
 	CreateRefreshToken(user *User, secret string, expiry int) (refreshToken string, err error)
 }
