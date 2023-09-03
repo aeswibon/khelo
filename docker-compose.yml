@@ -1,13 +1,11 @@
-version: "3.8"
+version: "3.9"
 
 services:
   web:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: dev.Dockerfile
     image: app
-    container_name: app
-    restart: unless-stopped
     env_file: .env
     ports:
       - "$PORT:$PORT"
@@ -15,9 +13,7 @@ services:
       - mongodb
 
   mongodb:
-    image: mongo:6.0
-    container_name: mongodb
-    restart: unless-stopped
+    image: mongo:latest
     env_file: .env
     environment:
       - MONGO_INITDB_ROOT_USERNAME=$DB_USER

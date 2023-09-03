@@ -5,14 +5,16 @@ FROM golang:${GO_VERSION}-alpine AS base
 
 FROM base AS builder
 
+WORKDIR /usr/src/app
+
 # install dependencies
-RUN --mount=type=cache,target=/go/pkg/mod/ \
-  --mount=type=bind,src=go.mod,target=go.mod \
-  --mount=type=bind,src=go.sum,target=go.sum \
-  go mod download
+COPY go.mod go.sum ./
+RUN go mod download && go mod verify
 
-FROM builder AS dev
+# install air
+RUN go install github.com/cosmtrek/air@latest
 
-WORKDIR /app
+# copy the source code
+COPY . .
 
 ENTRYPOINT ["air", "-c", ".air.toml"]
