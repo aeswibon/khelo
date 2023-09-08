@@ -34,7 +34,8 @@ func (sc *RegisterController) Register(c *gin.Context) {
 		return
 	}
 
-	if err := sc.RegisterUsecase.Create(c, &request); err != nil {
+	err := sc.RegisterUsecase.Create(c, &request)
+	if err != nil {
 		c.JSON(http.StatusInternalServerError, domain.ErrorResponse{Message: err.Error()})
 		return
 	}

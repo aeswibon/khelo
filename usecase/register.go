@@ -2,10 +2,10 @@ package usecase
 
 import (
 	"context"
-	"log"
 	"time"
 
 	"github.com/cp-Coder/khelo/domain"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 type registerUsecase struct {
@@ -25,6 +25,7 @@ func (su *registerUsecase) Create(c context.Context, request *domain.RegisterReq
 	ctx, cancel := context.WithTimeout(c, su.contextTimeout)
 	defer cancel()
 	user := &domain.User{
+		ID:       primitive.NewObjectID(),
 		Username: request.Username,
 		Name:     request.Name,
 		Email:    request.Email,
@@ -34,6 +35,5 @@ func (su *registerUsecase) Create(c context.Context, request *domain.RegisterReq
 	}
 
 	err := su.userRepository.Create(ctx, user)
-	log.Default().Println(err)
 	return err
 }

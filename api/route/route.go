@@ -11,7 +11,7 @@ import (
 
 // @title Khelo API
 // @version 1.0
-// @description This is a sample server celler server.
+// @description This is a sample server
 // @termsOfService http://swagger.io/terms/
 
 // @contact.name API Support
@@ -30,7 +30,7 @@ func Setup(env *bootstrap.Env, timeout time.Duration, db mongo.Database, gin *gi
 	AuthRouter(env, timeout, db, publicRouter)
 	RefreshTokenRouter(env, timeout, db, publicRouter)
 
-	protectedRouter := gin.Group("")
+	protectedRouter := gin.Group("/api")
 	// Middleware to verify AccessToken
 	protectedRouter.Use(middleware.JwtAuthMiddleware(env.AccessTokenSecret))
 	// All Private APIs

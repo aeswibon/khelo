@@ -2,6 +2,7 @@ package mongo
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"go.mongodb.org/mongo-driver/mongo"
@@ -24,7 +25,7 @@ type mongoDatabase struct {
 type Collection interface {
 	FindOne(context.Context, interface{}) SingleResult
 	Find(context.Context, interface{}, ...*options.FindOptions) (Cursor, error)
-	InsertOne(context.Context, interface{}) (interface{}, error)
+	InsertOne(context.Context, interface{}) (*mongo.InsertOneResult, error)
 	InsertMany(context.Context, []interface{}) ([]interface{}, error)
 	DeleteOne(context.Context, interface{}) (int64, error)
 	CountDocuments(context.Context, interface{}, ...*options.CountOptions) (int64, error)
@@ -146,13 +147,14 @@ func (mc *mongoCollection) FindOne(ctx context.Context, filter interface{}) Sing
 // Find method to return cursor over the matching documents
 func (mc *mongoCollection) Find(ctx context.Context, filter interface{}, opts ...*options.FindOptions) (Cursor, error) {
 	findResult, err := mc.coll.Find(ctx, filter, opts...)
+	fmt.Println("findResult", findResult, err)
 	return &mongoCursor{mc: findResult}, err
 }
 
 // InsertOne method to insert a particular document into specified collection
-func (mc *mongoCollection) InsertOne(ctx context.Context, document interface{}) (interface{}, error) {
-	id, err := mc.coll.InsertOne(ctx, document)
-	return id.InsertedID, err
+func (mc *mongoCollection) InsertOne(ctx context.Context, document interface{}) (*mongo.InsertOneResult, error) {
+	res, err := mc.coll.InsertOne(ctx, document)
+	return res, err
 }
 
 // InsertMany method to insert multiple documents into specified collection

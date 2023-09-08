@@ -13,16 +13,17 @@ const (
 
 // User struct defining fields in user model
 type User struct {
-	ID       primitive.ObjectID `bson:"_id"`
-	Username string             `bson:"username" json:"username"`
-	Name     string             `bson:"name" json:"name,omitempty"`
-	Email    string             `bson:"email" json:"email,omitempty"`
-	Password string             `bson:"password" json:"-"`
-	Type     int                `bson:"type" json:"type,omitempty"`
-	Phone    string             `bson:"phone,omitempty" json:"phone,omitempty"`
-	Gender   string             `bson:"gender" json:"gender,omitempty"`
-	Age      int                `bson:"age" json:"age,omitempty"`
-	Deleted  bool               `bson:"deleted"`
+	ID                 primitive.ObjectID `bson:"_id"`
+	Username           string             `bson:"username" json:"username"`
+	Name               string             `bson:"name" json:"name,omitempty"`
+	Email              string             `bson:"email" json:"email,omitempty"`
+	Password           string             `bson:"password" json:"-"`
+	UserType           string             `bson:"type" json:"type,omitempty"`
+	Phone              string             `bson:"phone,omitempty" json:"phone,omitempty"`
+	Gender             string             `bson:"gender" json:"gender,omitempty"`
+	Age                int                `bson:"age" json:"age,omitempty"`
+	VerificationStatus string             `bson:"status" json:"status,omitempty"`
+	Deleted            bool               `bson:"deleted"`
 }
 
 // UserRepository interface defining database operations on user model

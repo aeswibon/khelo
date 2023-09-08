@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/cp-Coder/khelo/domain"
 	"github.com/cp-Coder/khelo/internal"
@@ -26,20 +27,25 @@ func UserRepository(db mongo.Database, collection string) domain.UserRepository 
 }
 
 func checkUnique(c context.Context, collection mongo.Collection, field string, value string) bool {
-	user, err := collection.CountDocuments(c, bson.M{field: value})
+	docs, err := collection.CountDocuments(c, bson.M{field: value})
 	if err != nil {
 		return false
 	}
-	return user == 0
+	return docs == 0
 }
 
 func (ur *userRepository) Create(c context.Context, user *domain.User) error {
 	collection := ur.database.Collection(ur.collection)
-	if check := checkUnique(c, collection, "username", user.Username); check {
+
+	// Check if username, email and phone are unique
+	if check := checkUnique(c, collection, "username", user.Username); !check {
 		return errors.New("username already exists")
 	}
-	if check := checkUnique(c, collection, "email", user.Email); check {
+	if check := checkUnique(c, collection, "email", user.Email); !check {
 		return errors.New("email already exists")
+	}
+	if check := checkUnique(c, collection, "phone", user.Phone); !check {
+		return errors.New("phone already exists")
 	}
 
 	// Hash password before storing in database
@@ -56,6 +62,7 @@ func (ur *userRepository) Fetch(c context.Context, filter interface{}, projectio
 	collection := ur.database.Collection(ur.collection)
 	opts := options.Find().SetProjection(projection)
 	cursor, err := collection.Find(c, filter, opts)
+	fmt.Println("cursor", cursor, err)
 	if err != nil {
 		return nil, err
 	}
@@ -64,6 +71,7 @@ func (ur *userRepository) Fetch(c context.Context, filter interface{}, projectio
 	for cursor.Next(c) {
 		var user domain.User
 		err := cursor.Decode(&user)
+		fmt.Println("checking user", user)
 		if err != nil {
 			return nil, err
 		}

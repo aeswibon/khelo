@@ -37,7 +37,7 @@ func (lc *LoginController) Login(c *gin.Context) {
 
 	user, err := lc.LoginUsecase.Authenticate(c, request)
 	if err != nil {
-		c.JSON(http.StatusNotFound, domain.ErrorResponse{Message: "Invalid Credentials"})
+		c.JSON(http.StatusNotFound, domain.ErrorResponse{Message: err.Error()})
 		return
 	}
 
@@ -59,4 +59,5 @@ func (lc *LoginController) Login(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, loginResponse)
+	return
 }

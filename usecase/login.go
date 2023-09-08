@@ -2,6 +2,7 @@ package usecase
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/cp-Coder/khelo/domain"
@@ -27,14 +28,15 @@ func (lu *loginUsecase) Authenticate(c context.Context, request domain.LoginRequ
 	defer cancel()
 	users, err := lu.userRepository.Fetch(ctx, bson.M{"username": request.Username}, bson.M{
 		"username": 1,
+		"password": 1,
 	})
 	if err != nil || len(users) == 0 {
-		return domain.User{}, err
+		return domain.User{}, errors.New("Invalid Credentials")
 	}
 	user := users[0]
 	check := internal.CheckPasswordHash(request.Password, user.Password)
 	if !check {
-		return domain.User{}, err
+		return domain.User{}, errors.New("Invalid Credentials")
 	}
 	return user, nil
 }
